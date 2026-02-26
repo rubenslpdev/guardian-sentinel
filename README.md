@@ -1,95 +1,110 @@
-# 🛡️ Guardian Sentinel LAMP
+# 🛡️ Guardian Sentinel
 
-O **Guardian Sentinel** é um ecossistema de monitoramento inteligente e auto-recuperável projetado para servidores LAMP (Linux, Apache, MySQL/MariaDB, PHP). Diferente de ferramentas de monitoramento passivas, o Sentinel atua como um "vigilante" que não apenas coleta dados, mas toma decisões autônomas para garantir a disponibilidade do serviço.
+**Guardian Sentinel** é um sistema leve de monitoramento e auto-reparo de servidores Linux. O projeto foi desenvolvido como um estudo prático de integração entre Shell Script, Python e SQLite, focado em garantir a disponibilidade de serviços essenciais e análise de performance a longo prazo.
 
-## Funcionalidades Principais
+## 🚀 Funcionalidades
 
-* **Coleta de Métricas em Tempo Real:** Monitoramento de CPU, RAM, Disco e SWAP via Shell Script de baixa latência.
-* **Health Check de Serviços:** Verificação constante do status do Apache e MariaDB.
-* **Inteligência de Auto-reparo:** Reinicialização automática de serviços caídos (Watchdog).
-* **Alertas Inteligentes:** Notificações via Telegram Bot API sobre falhas, reparos e atualizações pendentes.
-* **Análise de Segurança:** Verificação de pacotes `apt` que necessitam de atualização.
-* **Persistência e BI:** Histórico de performance armazenado em SQLite para análise de dados a longo prazo com Pandas.
+### 1. Monitoramento em Tempo Real
 
----
+O sistema analisa métricas críticas do servidor em intervalos programados:
 
-## Arquitetura do Sistema
+* **Recursos de Sistema:** Uso de CPU, Memória RAM, Espaço em Disco e SWAP.
+* **Serviços Críticos:** Status do Apache (`httpd`) e MariaDB/MySQL.
+* **Aplicação:** Tempo de resposta HTTP e códigos de status (ex: 200 OK).
 
-O projeto é dividido em camadas funcionais para garantir modularidade e leveza:
+### 2. Auto-Reparo Inteligente
 
-### 1. O Coletor (Shell Script)
+Se o Sentinel detectar que um serviço essencial (Apache ou MariaDB) caiu, ele tenta automaticamente o reinício via `systemctl` e notifica o administrador sobre o sucesso ou falha da intervenção.
 
-O "olheiro" do sistema. Roda via `crontab` e exporta o estado atual do servidor em um arquivo JSON estruturado em `/tmp/sentinel_status.json`.
+### 3. Alertas via Telegram
 
-### 2. O Cérebro (Python 1)
+Integração com a API de Bot do Telegram para envio de alertas imediatos quando:
 
-Lê o JSON gerado, processa a lógica de negócio e:
+* Métricas excedem limites de segurança (ex: CPU > 80%).
+* Serviços caem ou falham ao reiniciar.
+* Novas atualizações de segurança do sistema estão disponíveis.
 
-* Verifica atualizações de segurança pendentes.
-* Executa o **Auto-reparo** (`systemctl restart`).
-* Salva os dados no banco **SQLite**.
-* Dispara alertas via Telegram.
+### 4. Persistência e Histórico
 
-### 3. Analista de Dados (Python 2)
+Utiliza **SQLite** para armazenar dados de forma eficiente:
 
-Focado em ciência de dados e relatórios. Utiliza a biblioteca **Pandas** para ler o SQLite e gerar:
+* **Status Diário:** Um snapshot diário da saúde do servidor para análise de tendência (retenção de 90 dias).
+* **Logs de Erro:** Registro detalhado de todas as falhas detectadas (retenção de 15 dias).
 
-* Relatórios semanais/mensais de uptime.
-* Análise de tendências de consumo de recursos.
-* Comparativos de performance mês a mês.
+### 5. Relatórios Semanais
+
+Um script dedicado consolida os dados da semana e envia um resumo executivo com médias de performance e ranking dos componentes mais instáveis.
 
 ---
 
-## Estrutura de Dados (JSON)
+## Tecnologias Utilizadas
 
-O coletor gera uma saída padronizada para facilitar a ingestão:
+* **Shell Script (BASH):** Coleta de dados brutos do sistema.
+* **Python 3.12+:** Lógica de análise, tratamento de dados e alertas.
+* **SQLite:** Banco de dados relacional leve.
+* **Requests & Dotenv:** Comunicação com API e gestão de variáveis de ambiente.
 
-```json
-{  
-  "version": 1,
-  "timestamp": 1760000000,  
-  "cpu_percent": 12.4,  
-  "ram_free_percent": 43.1,  
-  "disk_percent": 61,  
-  "apache": "running",  
-  "mysql": "running",  
-  "http_status": 200,  
-  "response_time": 0.24  
-}
+---
+
+## Estrutura do Projeto
+
+```text
+guardian-sentinel/
+├── .venv/               # Ambiente virtual Python
+├── database/            # Armazenamento do sentinel.db
+├── .env                 # Credenciais (Token e Chat ID do Telegram)
+├── collector.sh         # Script Shell de coleta (Raw Data)
+├── sentinel.py          # O "Worker" (Análise e Auto-reparo)
+├── gerador_semanal.py   # O "Reporter" (Consolidação de dados)
+└── README.md
 
 ```
 
 ---
 
-## Roadmap de Desenvolvimento
+## Configuração e Instalação
 
-* [ ] **Fase 1: Coração Linux** - Implementar script Shell e exportação JSON.
-* [ ] **Fase 2: Inteligência** - Parser Python, integração SQLite e lógica de auto-reparo.
-* [ ] **Fase 3: Comunicação** - Configuração da API do Telegram e disparos de alerta.
-* [ ] **Fase 4: Automação** - Configuração de Crontab e Log Rotation para sustentabilidade do sistema.
-* [ ] **Fase 5: Data Science** - Scripts de análise Ad Hoc com Pandas e visualização de dados.
-
----
-
-## Exemplo de Análise de Dados
-
-Utilizamos o **Pandas** para transformar dados brutos em insights de infraestrutura:
-
-```python
-import pandas as pd
-import sqlite3
-
-# Carregando dados para análise
-conn = sqlite3.connect('sentinel_data.db')
-df = pd.read_sql_query("SELECT * FROM saude_servidor", conn)
-
-# Média mensal de uso de CPU
-df['data'] = pd.to_datetime(df['data'])
-media_mensal = df.groupby(df['data'].dt.to_period('M'))['cpu_uso'].mean()
+1. **Clonar o repositório:**
+```bash
+git clone https://github.com/rubenslpdev/guardian-sentinel.git
 
 ```
 
+
+2. **Configurar o ambiente virtual:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install requests python-dotenv
+
+```
+
+
+3. **Configurar Variáveis de Ambiente:**
+Crie um arquivo `.env` e adicione suas credenciais do Telegram:
+```env
+TELEGRAM_TOKEN=seu_token_aqui
+TELEGRAM_CHAT_ID=seu_chat_id_aqui
+
+```
+
+
+4. **Agendar no Cron (`crontab -e`):**
+```bash
+# Coleta e Análise de hora em hora
+00 * * * * /bin/bash /caminho/projeto/collector.sh
+01 * * * * /caminho/projeto/.venv/bin/python3 /caminho/projeto/sentinel.py
+
+# Relatório Semanal (Segunda-feira às 08:00)
+00 08 * * 1 /caminho/projeto/.venv/bin/python3 /caminho/projeto/gerador_semanal.py
+
+```
+
+
+
 ---
 
-**Contribuições:** Sinta-se à vontade para abrir Issues ou enviar Pull Requests para melhorar a inteligência de monitoramento!
+## 📝 Licença
+
+Este projeto foi desenvolvido para fins didáticos. Sinta-se à vontade para usar, modificar e distribuir.
 
