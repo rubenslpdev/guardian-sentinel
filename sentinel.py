@@ -116,7 +116,7 @@ def analisar_sistema():
     # 1. Salva Erros (se houver)
     for msg in alertas:
         cursor.execute("INSERT INTO logs_erros (timestamp, componente, mensagem) VALUES (?, 'Monitor', ?)", 
-                       (agora, msg))
+               (agora.isoformat(), msg)) # .isoformat() transforma em string
         enviar_telegram(msg)
 
     # 2. Salva Status Diário (O 'INSERT OR IGNORE' garante que só salve 1x por dia)
@@ -125,8 +125,9 @@ def analisar_sistema():
                    (data_hoje, d['cpu_percent'], d['ram_free_percent'], d['disk_percent'], d['response_time']))
 
     # 3. Limpeza Quinzenal (Remove erros com mais de 15 dias)
-    cursor.execute("DELETE FROM logs_erros WHERE timestamp < ?", (agora - timedelta(days=15),))
-
+    limite_data = (agora - timedelta(days=15)).isoformat()
+    cursor.execute("DELETE FROM logs_erros WHERE timestamp < ?", (limite_data,))
+   
     conn.commit()
     conn.close()
 
